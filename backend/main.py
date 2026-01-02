@@ -44,11 +44,12 @@ def extract_keywords(text: str) -> set:
 
     @return: set, a set of extracted keywords.
     """
+
     # Process the text with spaCy
     doc = nlp(text)
     keywords = set()
     
-    # Loop through tokens and filter out stop words, punctuation, numbers, and non-relevant parts of speech
+    # Loop through tokens and filter out stop words, punctuation, numbers, nd non-relevant parts of speech, and name entities
     for token in doc:
         if(token.is_stop):
             continue
@@ -56,9 +57,19 @@ def extract_keywords(text: str) -> set:
             continue
         if((token.pos_ != "NOUN") and (token.pos_ != "PROPN") and (token.pos_ != "VERB")):
             continue
+        if(token.ent_type_ in ["PERSON", "GPE", "DATE", "TIME", "MONEY", "PERCENT"]):
+            continue
+    
+        # Ignore short lemma (less than 2 characters)
+        if(len(token.lemma_.lower()) <= 2):
+            continue
+
+        #Ignore lemma that are digits
+        if(token.lemma_.lower().isdigit()):
+            continue
 
         # Normalize word to its lemma form and add to keywords set
-        keywords.add(token.lemma_)
+        keywords.add(token.lemma_.lower())
 
     return keywords
         
