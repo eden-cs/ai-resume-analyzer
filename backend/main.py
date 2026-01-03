@@ -104,6 +104,62 @@ def rescued_short_tokens(resume_text: str, job_desc_text: str) -> set:
     # Return the intersection of short tokens from resume and job description
     return short_resume_tokens.intersection(short_job_desc_tokens)
 
+def keywords_frequency(resume_text: str, job_desc_text: str) -> dict:
+    """
+    This helper function counts how many times each keyword appears in the resume_text and job_desc_text.
+
+    @param resume_text: str, the resume text.
+
+    @param job_desc_text: str, the job description text.
+
+    @return: dict, a dictionary with keywords as the keys and the frequency counts as the values.
+    """
+
+    resume_keyword_freq = {}
+    job_desc_keyword_freq = {}
+    resume_keywords = list()
+    job_desc_keywords = list()
+
+    # Process the resume and job description text with spaCy
+    resume_doc = nlp(resume_text)
+    job_desc_doc = nlp(job_desc_text)
+
+    # Loop through tokens in resume text to filter out stop words, punctuations, numbers, non-relevant parts of speech, and named entities
+    for token in resume_doc:
+        if(token.is_stop):
+            continue
+        if(token.is_punct or not(token.is_alpha)):
+            continue
+        if((token.pos_ != "NOUN") and (token.pos_ != "PROPN") and (token.pos_ != "VERB")):
+            continue
+        if(token.ent_type_ in ["PERSON", "GPE", "DATE", "TIME", "MONEY", "PERCENT"]):
+            continue
+        resume_keywords.append(token.lemma_.lower())
+
+    # Loop through tokens in job description text to filter out stop words, punctuations, numbers, non-relevant parts of speech, and named entities
+    for token in job_desc_doc:
+        if(token.is_stop):
+            continue
+        if(token.is_punct or not(token.is_alpha)):
+            continue
+        if((token.pos_ != "NOUN") and (token.pos_ != "PROPN") and (token.pos_ != "VERB")):
+            continue
+        if(token.ent_type_ in ["PERSON", "GPE", "DATE", "TIME", "MONEY", "PERCENT"]):
+            continue
+        job_desc_keywords.append(token.lemma_.lower())
+
+    # Count frequency of each keyword in resume_keywords
+    for keyword in resume_keywords:
+        keyword_count = resume_keywords.count(keyword)
+        resume_keyword_freq[keyword] = keyword_count
+
+    # Count frequency of each keyword in job_desc_keywords
+    for keyword in job_desc_keywords:
+        keyword_count = job_desc_keywords.count(keyword)
+        job_desc_keyword_freq[keyword] = keyword_count
+
+    return resume_keyword_freq, job_desc_keyword_freq
+
 def matched_keywords(resume_keywords: set, job_desc_keywords: set, rescued: set) -> set:
     """
     This helper function finds the matched keywords between the resume and job description.
