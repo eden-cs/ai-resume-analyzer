@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 import fitz # PyMuPDF
 import spacy # NLP library
+from collections import Counter
 
 # Load the small English NLP model from spaCy
 nlp = spacy.load("en_core_web_sm")
@@ -104,7 +105,7 @@ def rescued_short_tokens(resume_text: str, job_desc_text: str) -> set:
     # Return the intersection of short tokens from resume and job description
     return short_resume_tokens.intersection(short_job_desc_tokens)
 
-def keywords_frequency(resume_text: str, job_desc_text: str) -> dict:
+def keywords_frequency(resume_text: str, job_desc_text: str, rescued: set) -> dict:
     """
     This helper function counts how many times each keyword appears in the resume_text and job_desc_text.
 
@@ -112,11 +113,11 @@ def keywords_frequency(resume_text: str, job_desc_text: str) -> dict:
 
     @param job_desc_text: str, the job description text.
 
+    @param rescued: set, the set of rescued short tokens.
+
     @return: dict, a dictionary with keywords as the keys and the frequency counts as the values.
     """
 
-    resume_keyword_freq = {}
-    job_desc_keyword_freq = {}
     resume_keywords = list()
     job_desc_keywords = list()
 
@@ -130,10 +131,18 @@ def keywords_frequency(resume_text: str, job_desc_text: str) -> dict:
             continue
         if(token.is_punct or not(token.is_alpha)):
             continue
-        if((token.pos_ != "NOUN") and (token.pos_ != "PROPN") and (token.pos_ != "VERB")):
-            continue
         if(token.ent_type_ in ["PERSON", "GPE", "DATE", "TIME", "MONEY", "PERCENT"]):
             continue
+
+        # Handle short tokens only if they are in the rescued set
+        if(len(token.lemma_.lower()) <= 2):
+            if(token.lemma_.lower() in rescued):
+                resume_keywords.append(token.lemma_.lower())
+            continue
+
+        if((token.pos_ != "NOUN") and (token.pos_ != "PROPN") and (token.pos_ != "VERB")):
+            continue
+
         resume_keywords.append(token.lemma_.lower())
 
     # Loop through tokens in job description text to filter out stop words, punctuations, numbers, non-relevant parts of speech, and named entities
@@ -142,75 +151,89 @@ def keywords_frequency(resume_text: str, job_desc_text: str) -> dict:
             continue
         if(token.is_punct or not(token.is_alpha)):
             continue
-        if((token.pos_ != "NOUN") and (token.pos_ != "PROPN") and (token.pos_ != "VERB")):
-            continue
         if(token.ent_type_ in ["PERSON", "GPE", "DATE", "TIME", "MONEY", "PERCENT"]):
             continue
+
+        # Handle short tokens only if they are in the rescued set
+        if(len(token.lemma_.lower()) <= 2):
+            if(token.lemma_.lower() in rescued):
+                job_desc_keywords.append(token.lemma_.lower())
+            continue
+
+        if((token.pos_ != "NOUN") and (token.pos_ != "PROPN") and (token.pos_ != "VERB")):
+            continue
+    
         job_desc_keywords.append(token.lemma_.lower())
 
-    # Count frequency of each keyword in resume_keywords
-    for keyword in resume_keywords:
-        keyword_count = resume_keywords.count(keyword)
-        resume_keyword_freq[keyword] = keyword_count
-
-    # Count frequency of each keyword in job_desc_keywords
-    for keyword in job_desc_keywords:
-        keyword_count = job_desc_keywords.count(keyword)
-        job_desc_keyword_freq[keyword] = keyword_count
+    # Count frequency of each keyword using Counter
+    resume_keyword_freq = Counter(resume_keywords)
+    job_desc_keyword_freq = Counter(job_desc_keywords)
 
     return resume_keyword_freq, job_desc_keyword_freq
 
-def matched_keywords(resume_keywords: set, job_desc_keywords: set, rescued: set) -> set:
+def matched_keywords(resume_keyword_freq: dict, job_desc_keyword_freq: dict) -> set:
     """
     This helper function finds the matched keywords between the resume and job description.
 
-    @param resume_keywords: set, the set of keywords extracted from the resume.
+    @param resume_keyword_freq: dict, the dictionary of keywords extracted from the resume with their frequencies.
 
-    @param job_desc_keywords: set, the set of keywords extracted from the job description.
-
-    @param rescued: set, the set of rescued short tokens.
+    @param job_desc_keyword_freq: dict, the dictionary of keywords extracted from the job description with their frequencies.
 
     @return: set, a set of matched keywords.
     """
 
     # Find intersection of resume and job description keywords
-    matched = resume_keywords.intersection(job_desc_keywords)
+    matched = set(resume_keyword_freq.keys()).intersection(set(job_desc_keyword_freq.keys()))
     
-    return matched.union(rescued)
+    return matched
 
 
-def missing_keywords(resume_keywords: set, job_desc_keywords: set, rescued: set) -> set:
+def missing_keywords(resume_keyword_freq: dict, job_desc_keyword_freq: dict) -> set:
     """
     This helper function finds the missing keywords in the resume compared to the job description.
 
-    @param resume_keywords: set, the set of keywords extracted from the resume.
+    @param resume_keyword_freq: dict, the dictionary of keywords extracted from the resume with their frequencies.
 
-    @param job_desc_keywords: set, the set of keywords extracted from the job description.
-
-    @param rescued: set, the set of rescued short tokens.
+    @param job_desc_keyword_freq: dict, the dictionary of keywords extracted from the job description with their frequencies.
 
     @return: set, a set of missing keywords.
     """
 
-    return job_desc_keywords.difference(resume_keywords.union(rescued))
+    missing = set(job_desc_keyword_freq.keys()).difference(set(resume_keyword_freq.keys()))
+    
+    return missing
 
-def match_score(matched: set, job_desc_keywords: set) -> float:
+def match_score(resume_keyword_freq: dict, job_desc_keyword_freq: dict) -> float:
     """
     This helper function calculates the match score (as a percentage) between the resume and job description keywords.
 
-    @param matched: set, the set of matched keywords between the resume and job description.
+    @param resume_keyword_freq: dict, the dictionary of keywords extracted from the resume with their frequencies.
 
-    @param job_desc_keywords: set, the set of keywords extracted from the job description.
+    @param job_desc_keyword_freq: dict, the dictionary of keywords extracted from the job description with their frequencies.
 
     @return: float, the match score as a percentage.
     """
 
-    # Make sure job_desc_keywords is not empty to avoid division by zero
-    if(len(job_desc_keywords) == 0):
+    matched_weight = 0
+    required_weight = 0
+
+    # Calculate the coverage of resume keywords against job description keywords
+    for keyword in job_desc_keyword_freq:
+        total_occurrences = job_desc_keyword_freq[keyword]
+        # Return the value if they keyword exists, 0 otherwise
+        matched_occurrences = resume_keyword_freq.get(keyword, 0)
+        covered = min(total_occurrences, matched_occurrences)
+
+        # Calculate weights
+        matched_weight += covered
+        required_weight += total_occurrences
+
+    # Avoid division by zero
+    if(required_weight == 0):
         return 0.0
     
-    match_score = round((len(matched) / len(job_desc_keywords)) * 100, 2)
-
+    match_score = round((matched_weight / required_weight) * 100, 2)
+    
     return match_score
 
 @app.post("/analyze")
@@ -230,14 +253,17 @@ async def analyze_resume(file: UploadFile, job_desc: str = Form(...)):
     # Call on helper function to rescue short tokens
     rescued = rescued_short_tokens(resume_text, job_desc)
 
+    # Call on helper function to get resume keywords and job description keywords frequency
+    resume_keyword_freq, job_desc_keyword_freq = keywords_frequency(resume_text, job_desc, rescued)
+    
     # Call on helper function to find matched keywords
-    matched = matched_keywords(resume_keywords, job_desc_keywords, rescued)
+    matched = matched_keywords(resume_keyword_freq, job_desc_keyword_freq)
 
     # Call on helper function to find missing keywords
-    missing = missing_keywords(resume_keywords, job_desc_keywords, rescued)
+    missing = missing_keywords(resume_keyword_freq, job_desc_keyword_freq)
 
     # Call on helper function to calculate match score
-    score = match_score(matched, job_desc_keywords)
+    score = match_score(resume_keyword_freq, job_desc_keyword_freq)
 
     return {
         "message": "Resume received", 
@@ -247,7 +273,7 @@ async def analyze_resume(file: UploadFile, job_desc: str = Form(...)):
         "matched_keywords": sorted(matched),
         "missing_keywords": sorted(missing),  
         "match_score": score
-        }
+    }
 
 @app.get("/")
 def root():
