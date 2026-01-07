@@ -102,10 +102,10 @@ def rescued_short_tokens(resume_text: str, job_desc_text: str) -> set:
         if(len(token.text) <= 2 and not(token.is_stop) and token.is_alpha):
             short_job_desc_tokens.add(token.lemma_.lower())
         
-    # Return the intersection of short tokens from resume and job description
-    return short_resume_tokens.intersection(short_job_desc_tokens)
+    # Return the set of short tokens from resume and job description
+    return short_resume_tokens, short_job_desc_tokens
 
-def keywords_frequency(resume_text: str, job_desc_text: str, rescued: set) -> dict:
+def keywords_frequency(resume_text: str, job_desc_text: str, resume_rescued: set, job_desc_rescued: set) -> dict:
     """
     This helper function counts how many times each keyword appears in the resume_text and job_desc_text.
 
@@ -113,7 +113,9 @@ def keywords_frequency(resume_text: str, job_desc_text: str, rescued: set) -> di
 
     @param job_desc_text: str, the job description text.
 
-    @param rescued: set, the set of rescued short tokens.
+    @param resume_rescued: set, the set of rescued short tokens from the resume.
+
+    @param job_desc_rescued: set, the set of rescued short tokens from the job description.
 
     @return: dict, a dictionary with keywords as the keys and the frequency counts as the values.
     """
@@ -125,21 +127,27 @@ def keywords_frequency(resume_text: str, job_desc_text: str, rescued: set) -> di
     resume_doc = nlp(resume_text)
     job_desc_doc = nlp(job_desc_text)
 
-    # Loop through tokens in resume text to filter out stop words, punctuations, numbers, non-relevant parts of speech, and named entities
+    # Loop through tokens in resume text to filter out stop words, punctuations, and numbers
     for token in resume_doc:
         if(token.is_stop):
             continue
         if(token.is_punct or not(token.is_alpha)):
             continue
-        if(token.ent_type_ in ["PERSON", "GPE", "DATE", "TIME", "MONEY", "PERCENT"]):
-            continue
 
         # Handle short tokens only if they are in the rescued set
-        if(len(token.lemma_.lower()) <= 2):
-            if(token.lemma_.lower() in rescued):
-                resume_keywords.append(token.lemma_.lower())
+        if(token.lemma_.lower() in resume_rescued):
+            resume_keywords.append(token.lemma_.lower())
             continue
 
+        # Ignore short tokens not in rescued set
+        if(len(token.lemma_.lower()) <= 2):
+            continue
+
+        # Filter out named entities
+        if(token.ent_type_ in ["PERSON", "GPE", "DATE", "TIME", "MONEY", "PERCENT"]):
+            continue
+        
+        # Filter out non-relevant parts of speech
         if((token.pos_ != "NOUN") and (token.pos_ != "PROPN") and (token.pos_ != "VERB")):
             continue
 
@@ -151,15 +159,21 @@ def keywords_frequency(resume_text: str, job_desc_text: str, rescued: set) -> di
             continue
         if(token.is_punct or not(token.is_alpha)):
             continue
+
+        # Handle short tokens only if they are in the rescued set
+        if(token.lemma_.lower() in job_desc_rescued):
+            job_desc_keywords.append(token.lemma_.lower())
+            continue
+
+         # Ignore short tokens not in rescued set
+        if(len(token.lemma_.lower()) <= 2):
+            continue
+
+        # Filter out named entities
         if(token.ent_type_ in ["PERSON", "GPE", "DATE", "TIME", "MONEY", "PERCENT"]):
             continue
 
-        # Handle short tokens only if they are in the rescued set
-        if(len(token.lemma_.lower()) <= 2):
-            if(token.lemma_.lower() in rescued):
-                job_desc_keywords.append(token.lemma_.lower())
-            continue
-
+        # Filter out non-relevant parts of speech
         if((token.pos_ != "NOUN") and (token.pos_ != "PROPN") and (token.pos_ != "VERB")):
             continue
     
@@ -250,11 +264,11 @@ async def analyze_resume(file: UploadFile, job_desc: str = Form(...)):
     # Call on helper function to extract keywords from the job description
     job_desc_keywords = extract_keywords(job_desc)
 
-    # Call on helper function to rescue short tokens
-    rescued = rescued_short_tokens(resume_text, job_desc)
+    # Call on helper function to rescue short tokens from resume and job description
+    resume_rescued, job_desc_rescued = rescued_short_tokens(resume_text, job_desc)
 
     # Call on helper function to get resume keywords and job description keywords frequency
-    resume_keyword_freq, job_desc_keyword_freq = keywords_frequency(resume_text, job_desc, rescued)
+    resume_keyword_freq, job_desc_keyword_freq = keywords_frequency(resume_text, job_desc, resume_rescued, job_desc_rescued)
     
     # Call on helper function to find matched keywords
     matched = matched_keywords(resume_keyword_freq, job_desc_keyword_freq)
@@ -270,6 +284,10 @@ async def analyze_resume(file: UploadFile, job_desc: str = Form(...)):
         "job_desc": job_desc,
         "resume_keywords": sorted(resume_keywords),
         "job_desc_keywords": sorted(job_desc_keywords),
+        "resume_rescued": sorted(resume_rescued),
+        "job_desc_rescued": sorted(job_desc_rescued),
+        "resume_keyword_freq": dict(resume_keyword_freq),
+        "job_desc_keyword_freq":  dict(job_desc_keyword_freq),
         "matched_keywords": sorted(matched),
         "missing_keywords": sorted(missing),  
         "match_score": score
