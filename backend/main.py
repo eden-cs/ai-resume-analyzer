@@ -185,6 +185,40 @@ def keywords_frequency(resume_text: str, job_desc_text: str, resume_rescued: set
 
     return resume_keyword_freq, job_desc_keyword_freq
 
+def keyword_importance(job_desc_keyword_freq: dict) -> dict:
+    """
+    This helper function categorizes each keyword in the job description keyword frequency dictionary into high, medium, and low importance based on their frequency.
+
+    @param job_desc_keyword_freq: dict, the dictionary of keywords extracted from the job description with their frequencies.
+
+    @return: dict, a dictionary with the keys being the labels "high", "medium", and "low", and the values being sets of keywords and their respect frequencies that fall into each category.
+    """
+
+    # Intialize importance categories
+    keyword_importance = {"high": set(), "medium": set(), "low": set()}
+
+    # Sort the job description keywords by frequency in descending order
+    sorted_keywords = sorted(job_desc_keyword_freq.items(), key = lambda item: item[1], reverse = True)
+
+    # Determine frequency thresholds: top 25% as high importance, next 50% as medium importance, rest as low importance
+    total_keywords = len(sorted_keywords)
+    high_cutoff = int(0.25 * total_keywords)
+    medium_cutoff = int(0.75 * total_keywords)
+
+    # Categorize keywords based on their frequency
+    for idx, (keyword, freq) in enumerate(sorted_keywords):
+        # High importance: frequency is in the top 25% of frequencies
+        if(idx < high_cutoff):
+            keyword_importance["high"].add((keyword, freq))
+        # Medium importance: frequency is in the next 50% of frequencies
+        elif(idx < medium_cutoff):
+            keyword_importance["medium"].add((keyword, freq))
+        # Low importance: frequency is in the bottom 25% of frequencies
+        else:
+            keyword_importance["low"].add((keyword, freq))
+
+    return keyword_importance
+
 def matched_keywords(resume_keyword_freq: dict, job_desc_keyword_freq: dict) -> set:
     """
     This helper function finds the matched keywords between the resume and job description.
