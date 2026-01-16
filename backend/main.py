@@ -37,6 +37,7 @@ def extract_pdf_text(file_bytes: bytes) -> str:
 
     return text
 
+
 def extract_keywords(text: str) -> set:
     """
     This helper function extracts keywords from the given text using spaCy.
@@ -74,6 +75,7 @@ def extract_keywords(text: str) -> set:
 
     return keywords
 
+
 def rescued_short_tokens(resume_text: str, job_desc_text: str) -> set:
     """
     This helper function resuces the short tokens (less than or equal to 2 characters) identified as keywords.
@@ -104,6 +106,7 @@ def rescued_short_tokens(resume_text: str, job_desc_text: str) -> set:
         
     # Return the set of short tokens from resume and job description
     return short_resume_tokens, short_job_desc_tokens
+
 
 def keywords_frequency(resume_text: str, job_desc_text: str, resume_rescued: set, job_desc_rescued: set) -> dict:
     """
@@ -185,6 +188,7 @@ def keywords_frequency(resume_text: str, job_desc_text: str, resume_rescued: set
 
     return resume_keyword_freq, job_desc_keyword_freq
 
+
 def keyword_importance(job_desc_keyword_freq: dict) -> dict:
     """
     This helper function categorizes each keyword in the job description keyword frequency dictionary into high, medium, and low importance based on their frequency.
@@ -219,6 +223,7 @@ def keyword_importance(job_desc_keyword_freq: dict) -> dict:
 
     return keyword_importance
 
+
 def matched_keywords(resume_keyword_freq: dict, job_desc_keyword_freq: dict) -> set:
     """
     This helper function finds the matched keywords between the resume and job description.
@@ -236,7 +241,7 @@ def matched_keywords(resume_keyword_freq: dict, job_desc_keyword_freq: dict) -> 
     return matched
 
 
-def missing_keywords(resume_keyword_freq: dict, job_desc_keyword_freq: dict) -> set:
+def missing_keywords(resume_keyword_freq: dict, job_desc_keyword_freq: dict) -> dict:
     """
     This helper function finds the missing keywords in the resume compared to the job description.
 
@@ -244,12 +249,24 @@ def missing_keywords(resume_keyword_freq: dict, job_desc_keyword_freq: dict) -> 
 
     @param job_desc_keyword_freq: dict, the dictionary of keywords extracted from the job description with their frequencies.
 
-    @return: set, a set of missing keywords.
+    @return: dict, a dictionary of missing keywords categorized by importance level.
     """
-
+    # Find keywords that are in the job description but not in the resume
     missing = set(job_desc_keyword_freq.keys()).difference(set(resume_keyword_freq.keys()))
+                                                       
+    # Call on keyword_importance helper to categorize job description keywords by importance
+    job_desc_keyword_importance = keyword_importance(job_desc_keyword_freq)
+
+    important_missing = {"high": set(), "medium": set(), "low": set()}
+
+    # Filter missing keywords based on importance levels
+    for importance_level, keywords in job_desc_keyword_importance.items():
+        for keyword, _freq in keywords:
+            if(keyword in missing):
+                important_missing[importance_level].add(keyword)
+
+    return important_missing
     
-    return missing
 
 def match_score(resume_keyword_freq: dict, job_desc_keyword_freq: dict) -> float:
     """
@@ -283,6 +300,38 @@ def match_score(resume_keyword_freq: dict, job_desc_keyword_freq: dict) -> float
     match_score = round((matched_weight / required_weight) * 100, 2)
     
     return match_score
+
+def missing_feedback(missing_keywords: dict) -> dict:
+    """
+    This helper function generates feedback based on the missing keywords categorized by importance level.
+
+    @param: missing_keywords: dict, a dictionary of missing keywords categorized by importance level.
+
+    @return: dict, the feedback messages based on missing keywords.
+    """
+
+    feedback = {"high": {"message": "", "keywords": set()}, "medium": {"message": "", "keywords": set()}, "low": {"message": "", "keywords": set()}}
+
+    # Generate feedback messages and keyword sets for each importance level
+    for importance_level, keywords in missing_keywords.items():
+        # No missing keywords in this importance level
+        if(len(keywords) == 0):
+            feedback[importance_level]["message"] = (f"No {importance_level} importance keywords are missing.")
+            feedback[importance_level]["keywords"] = set()
+
+        # There are missing keywords in this importance level 
+        else:
+            if(importance_level == "high"):
+                message = ("These critical skills are missing from your resume and are essential for this role.")
+            elif(importance_level == "medium"):
+                message = ("These skills are missing, and including them would strengthen your resume.")
+            else:
+                message = ("These are nice-to-have skills and would improve your resume.")
+
+            feedback[importance_level]["message"] = message
+            feedback[importance_level]["keywords"] = missing_keywords[importance_level]    
+
+    return feedback
 
 @app.post("/analyze")
 async def analyze_resume(file: UploadFile, job_desc: str = Form(...)):
@@ -326,6 +375,7 @@ async def analyze_resume(file: UploadFile, job_desc: str = Form(...)):
         "missing_keywords": sorted(missing),  
         "match_score": score
     }
+
 
 @app.get("/")
 def root():
