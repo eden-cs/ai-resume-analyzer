@@ -333,6 +333,26 @@ def missing_feedback(missing_keywords: dict) -> dict:
 
     return feedback
 
+def analysis_summary(score: float, matched: set, missing: dict) -> str:
+    """
+    This helper function generates a summary of the analysis based on the match score, matched keywords, and missing keywords.
+
+    @param score: float, the match score as a percentage.
+
+    @param matched: set, a set of matched keywords.
+
+    @param missing: dict, a dictionary of missing keywords categorized by importance level.
+    """
+
+    # Calculate the number of matched keywords and critical missing keywords
+    matched_length = len(matched)
+    missing_length = len(missing["high"])
+
+    summary = f"Your resume matches {score}% of the keywords in the job description. You have {matched_length} matched keywords and {missing_length} critical missing keywords."
+    
+    return summary
+
+
 @app.post("/analyze")
 async def analyze_resume(file: UploadFile, job_desc: str = Form(...)):
     # Convert UploadFile to raw bytes
@@ -359,21 +379,25 @@ async def analyze_resume(file: UploadFile, job_desc: str = Form(...)):
     # Call on helper function to find missing keywords
     missing = missing_keywords(resume_keyword_freq, job_desc_keyword_freq)
 
+    # Convert missing keywords from sets to lists for JSON serialization
+    for importance_level in missing:
+        missing[importance_level] = list(missing[importance_level])
+
+    # Call on helper function to generate feedback based on missing keywords
+    feedback = missing_feedback(missing)
+
     # Call on helper function to calculate match score
     score = match_score(resume_keyword_freq, job_desc_keyword_freq)
 
+    # Call on helper function to generate analysis summary
+    summary = analysis_summary(score, matched, missing)
+
     return {
-        "message": "Resume received", 
-        "job_desc": job_desc,
-        "resume_keywords": sorted(resume_keywords),
-        "job_desc_keywords": sorted(job_desc_keywords),
-        "resume_rescued": sorted(resume_rescued),
-        "job_desc_rescued": sorted(job_desc_rescued),
-        "resume_keyword_freq": dict(resume_keyword_freq),
-        "job_desc_keyword_freq":  dict(job_desc_keyword_freq),
+        "match_score": score,
         "matched_keywords": sorted(matched),
-        "missing_keywords": sorted(missing),  
-        "match_score": score
+        "missing_keywords": missing,  
+        "feedback": feedback,
+        "summary": summary
     }
 
 
