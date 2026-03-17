@@ -5,6 +5,7 @@ import spacy # NLP library
 from collections import Counter
 import os
 import google.generativeai as genai
+import google.api_core.exceptions as google_exceptions
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -90,7 +91,7 @@ def extract_keywords(text: str) -> set:
     return keywords
 
 
-def rescued_short_tokens(resume_text: str, job_desc_text: str) -> set:
+def rescued_short_tokens(resume_text: str, job_desc_text: str) -> tuple:
     """
     This helper function resuces the short tokens (less than or equal to 2 characters) identified as keywords.
 
@@ -98,7 +99,7 @@ def rescued_short_tokens(resume_text: str, job_desc_text: str) -> set:
 
     @param job_desc_text: str, the job description text.
 
-    @return: set, a set of rescued short tokens.
+    @return: tuple, a tuple containing sets of rescued short tokens from the resume and job description.
     """
 
     # Process the resume and job description text with spaCy
@@ -395,12 +396,39 @@ def generate_suggestions(missing: dict, score: float) -> str:
     medium_missing = ", ".join(missing["medium"]) if missing["medium"] else "none"
     
     # Create a prompt for the language model based on the missing keywords and match score
-    prompt = f"You are a resume optimization assistant. A resume has been analyzed against a job description, and the match score is {score}%. The following high importance keywords are missing from the resume: {high_missing}. The following medium importance keywords are missing from the resume: {medium_missing}. Provide specific suggestions on how to improve the resume to better match the job description."
+    prompt = f"You are a resume optimization assistant. A resume has been analyzed against a job description, and the match score is {score}%. The following high importance keywords are missing from the resume: {high_missing}. The following medium importance keywords are missing from the resume: {medium_missing}. Provide 3-5 actionable suggestions on how to improve the resume. Focus on adding missing high importance skills. Keep suggestions concise and professional."
 
-    # Generate suggestions using the language model
-    response = model.generate_content(prompt)
-    suggestions = response.text.strip()
-    return suggestions
+    # Try to generate suggestions using the language model with error handling for potential API errors
+    try:
+        response = model.generate_content(
+            prompt, 
+            generation_config = {
+                "max_output_tokens": 150, # Limit the response to 150 tokens to ensure concise suggestions
+                "temperature": 0.7, # Set temperature to 0.7 for a balance between creativity and relevance
+                "top_p": 0.9 # Set top_p to 0.9 to consider the top 90% of token probabilities for generating suggestions
+            }
+        )
+
+        # Generate suggestions using the language model
+        suggestions = response.text.strip() if response and response.text else ""
+        return suggestions
+    
+    except google_exceptions.InvalidArgument as e:
+        print("Invalid request:", str(e))
+
+    except google_exceptions.ResourceExhausted as e:
+        print("Quota exceeded or rate limit hit. Please try again tomorrow:", str(e))
+
+    except google_exceptions.GoogleAPIError as e:
+        print("API call failed:", str(e))
+
+    except Exception as e:
+        print("An unexpected error occurred:", str(e))
+
+    # Return feedback based on missing keywords if API call fails
+    fallback_suggestions = f"Focus on adding these missing high importance skills to your resume: {high_missing}. Also consider including these medium importance skills: {medium_missing}." 
+    return fallback_suggestions
+    
 
 
 @app.post("/analyze")
