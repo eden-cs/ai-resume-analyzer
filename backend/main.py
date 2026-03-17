@@ -3,6 +3,20 @@ from fastapi.middleware.cors import CORSMiddleware
 import fitz # PyMuPDF
 import spacy # NLP library
 from collections import Counter
+import os
+import google.generativeai as genai
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Initialize Google Generative AI client with API key from the environment variable
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+model = genai.GenerativeModel("gemini-2.5-flash")
+
+# Rate limiting - max requests per day
+REQUEST_COUNT = 0
+MAX_DAILY_REQUESTS = 20
 
 # Load the small English NLP model from spaCy
 nlp = spacy.load("en_core_web_sm")
@@ -301,6 +315,7 @@ def match_score(resume_keyword_freq: dict, job_desc_keyword_freq: dict) -> float
     
     return match_score
 
+
 def missing_feedback(missing_keywords: dict) -> dict:
     """
     This helper function generates feedback based on the missing keywords categorized by importance level.
@@ -310,14 +325,14 @@ def missing_feedback(missing_keywords: dict) -> dict:
     @return: dict, the feedback messages based on missing keywords.
     """
 
-    feedback = {"high": {"message": "", "keywords": set()}, "medium": {"message": "", "keywords": set()}, "low": {"message": "", "keywords": set()}}
+    feedback = {"high": {"message": "", "keywords": []}, "medium": {"message": "", "keywords": []}, "low": {"message": "", "keywords": []}}
 
     # Generate feedback messages and keyword sets for each importance level
     for importance_level, keywords in missing_keywords.items():
         # No missing keywords in this importance level
         if(len(keywords) == 0):
             feedback[importance_level]["message"] = (f"No {importance_level} importance keywords are missing.")
-            feedback[importance_level]["keywords"] = set()
+            feedback[importance_level]["keywords"] = []
 
         # There are missing keywords in this importance level 
         else:
@@ -333,6 +348,7 @@ def missing_feedback(missing_keywords: dict) -> dict:
 
     return feedback
 
+
 def analysis_summary(score: float, matched: set, missing: dict) -> str:
     """
     This helper function generates a summary of the analysis based on the match score, matched keywords, and missing keywords.
@@ -342,6 +358,8 @@ def analysis_summary(score: float, matched: set, missing: dict) -> str:
     @param matched: set, a set of matched keywords.
 
     @param missing: dict, a dictionary of missing keywords categorized by importance level.
+
+    @return: str, the summary of the analysis.
     """
 
     # Calculate the number of matched keywords and critical missing keywords
@@ -351,6 +369,38 @@ def analysis_summary(score: float, matched: set, missing: dict) -> str:
     summary = f"Your resume matches {score}% of the keywords in the job description. You have {matched_length} matched keywords and {missing_length} critical missing keywords."
     
     return summary
+
+
+def generate_suggestions(missing: dict, score: float) -> str:
+    """
+    This helper function generates suggestions for improving the resume based on the missing keywords and the job description using OpenAI's language model.
+
+    @param missing: dict, a dictionary of missing keywords categorized by importance level.
+
+    @param score: float, the match score as a percentage.
+
+    @return: str, the generated suggestions for improving the resume.
+    """
+
+    global REQUEST_COUNT
+
+    # Check if the daily request limit has been reached
+    if (REQUEST_COUNT >= MAX_DAILY_REQUESTS):
+        return "Sorry, the daily request limit has been reached. Please try again tomorrow."
+    
+    REQUEST_COUNT += 1
+    
+    # Format missing keywords for the prompt
+    high_missing = ", ".join(missing["high"]) if missing["high"] else "none"
+    medium_missing = ", ".join(missing["medium"]) if missing["medium"] else "none"
+    
+    # Create a prompt for the language model based on the missing keywords and match score
+    prompt = f"You are a resume optimization assistant. A resume has been analyzed against a job description, and the match score is {score}%. The following high importance keywords are missing from the resume: {high_missing}. The following medium importance keywords are missing from the resume: {medium_missing}. Provide specific suggestions on how to improve the resume to better match the job description."
+
+    # Generate suggestions using the language model
+    response = model.generate_content(prompt)
+    suggestions = response.text.strip()
+    return suggestions
 
 
 @app.post("/analyze")
@@ -392,12 +442,16 @@ async def analyze_resume(file: UploadFile, job_desc: str = Form(...)):
     # Call on helper function to generate analysis summary
     summary = analysis_summary(score, matched, missing)
 
+    # Call on helper function to generate suggestions for improving the resume
+    suggestions = generate_suggestions(missing, score)
+
     return {
         "match_score": score,
         "matched_keywords": sorted(matched),
         "missing_keywords": missing,  
         "feedback": feedback,
-        "summary": summary
+        "summary": summary,
+        "suggestions": suggestions
     }
 
 
