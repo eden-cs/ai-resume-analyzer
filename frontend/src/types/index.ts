@@ -21,6 +21,7 @@ export interface MissingKeywords {
 // Shape of the full analysis result returned by the API
 export interface AnalysisResult {
     match_score: number
+    matched_keywords: string[]
     missing_keywords: MissingKeywords
     summary: string
     feedback: Feedback
