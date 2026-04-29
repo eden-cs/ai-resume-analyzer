@@ -56,8 +56,8 @@ async def analyze_resume(file: UploadFile, job_desc: str = Form(...)):
         "match_score": score,
         "matched_keywords": sorted(matched),
         "missing_keywords": missing,  
-        "feedback": feedback,
         "summary": summary,
+        "feedback": feedback,
         "suggestions": suggestions
     }
 
