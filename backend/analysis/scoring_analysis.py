@@ -48,6 +48,6 @@ def analysis_summary(score: float, matched: set, missing: dict) -> str:
     matched_length = len(matched)
     missing_length = len(missing["high"])
 
-    summary = f"Your resume matches {score}% of the keywords in the job description. You have {matched_length} matched keywords and {missing_length} critical missing keywords."
+    summary = f"Your resume matches {round(score)}% of the keywords in the job description. You have {matched_length} matched keywords and {missing_length} critical missing keywords."
     
     return summary
