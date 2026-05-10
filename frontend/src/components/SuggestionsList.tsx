@@ -6,9 +6,12 @@ interface Props {
 export default function SuggestionsList({ suggestions }: Props) {
     // Parse the suggestions string into an array of individual suggestion strings.
     const lines = (() => {
+        // Clean the string by removing an leading/trailing whitespace.
+        const cleaned = suggestions.trim()
+
         // Handle the case where Gemini returns a JSON array.
         try {
-            const parsed = JSON.parse(suggestions)
+            const parsed = JSON.parse(cleaned)
             // Make sure it's an array of strings.
             if (Array.isArray(parsed)) {
                 return parsed as string[]
@@ -17,9 +20,19 @@ export default function SuggestionsList({ suggestions }: Props) {
         } catch {
             // Fall through to text splitting.
         }
-
+        // Try to extract items from malformed JSON array
+        try {
+            // Add closing bracket if missing and try again
+            const fixed = cleaned.endsWith(']') ? cleaned : cleaned + '"]'
+            const parsed = JSON.parse(fixed)
+            if (Array.isArray(parsed)) {
+                return parsed as string[]
+            }
+        } catch {
+            // Fall through to text splitting.
+        }
         // Fall back to splitting by newline and cleaning up numbering or dashes.
-        return suggestions
+        return cleaned
             .split('\n')
             .map((line) =>
                 line
@@ -34,7 +47,7 @@ export default function SuggestionsList({ suggestions }: Props) {
         <div className = "bg-taupe border border-espresso/12 rounded-xl p-5 mb-3">
            
             {/* Card label */}
-            <p className = "font-body font-medium text-[10-px] tracking-[0.13em] uppercase text-espresso opacity-60 mb-3">
+            <p className = "font-body font-medium text-[10px] tracking-[0.13em] uppercase text-espresso opacity-60 mb-3">
                 Suggestions
             </p>
 
