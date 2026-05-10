@@ -1,8 +1,8 @@
 import spacy # NLP library
 from collections import Counter
 
-# Load the small English NLP model from spaCy
-nlp = spacy.load("en_core_web_sm")
+# Load the medium English NLP model from spaCy
+nlp = spacy.load("en_core_web_md")
 
 def extract_keywords(text: str) -> set:
     """
@@ -23,13 +23,13 @@ def extract_keywords(text: str) -> set:
             continue
         if(token.is_punct or not(token.is_alpha)):
             continue
-        if((token.pos_ != "NOUN") and (token.pos_ != "PROPN") and (token.pos_ != "VERB")):
+        if((token.pos_ != "NOUN") and (token.pos_ != "PROPN")):
             continue
         if(token.ent_type_ in ["PERSON", "GPE", "DATE", "TIME", "MONEY", "PERCENT"]):
             continue
     
-        # Ignore short lemma (less than or equal to 2 characters)
-        if(len(token.lemma_.lower()) <= 2):
+        # Ignore short lemma (less than or equal to 4 characters)
+        if(len(token.lemma_.lower()) <= 4):
             continue
 
         # Ignore lemma that are digits
@@ -109,7 +109,7 @@ def keywords_frequency(resume_text: str, job_desc_text: str, resume_rescued: set
             continue
 
         # Ignore short tokens not in rescued set
-        if(len(token.lemma_.lower()) <= 2):
+        if(len(token.lemma_.lower()) <= 4):
             continue
 
         # Filter out named entities
@@ -117,7 +117,7 @@ def keywords_frequency(resume_text: str, job_desc_text: str, resume_rescued: set
             continue
         
         # Filter out non-relevant parts of speech
-        if((token.pos_ != "NOUN") and (token.pos_ != "PROPN") and (token.pos_ != "VERB")):
+        if((token.pos_ != "NOUN") and (token.pos_ != "PROPN")):
             continue
 
         resume_keywords.append(token.lemma_.lower())
@@ -135,7 +135,7 @@ def keywords_frequency(resume_text: str, job_desc_text: str, resume_rescued: set
             continue
 
          # Ignore short tokens not in rescued set
-        if(len(token.lemma_.lower()) <= 2):
+        if(len(token.lemma_.lower()) <= 4):
             continue
 
         # Filter out named entities
@@ -143,7 +143,7 @@ def keywords_frequency(resume_text: str, job_desc_text: str, resume_rescued: set
             continue
 
         # Filter out non-relevant parts of speech
-        if((token.pos_ != "NOUN") and (token.pos_ != "PROPN") and (token.pos_ != "VERB")):
+        if((token.pos_ != "NOUN") and (token.pos_ != "PROPN")):
             continue
     
         job_desc_keywords.append(token.lemma_.lower())
