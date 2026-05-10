@@ -19,7 +19,7 @@ export default function FeedbackCard({ feedback }: Props) {
         <div className = "bg-taupe border border-espresso/12 rounded-xl p-5 mb-3">
 
         {/* Card label */}
-        <p className = "font-body font-medium text-[10-px] tracking-[0.13em] uppercase text-espresso opacity-60 mb-3">
+        <p className = "font-body font-medium text-[10px] tracking-[0.13em] uppercase text-espresso opacity-60 mb-3">
             Feedback
         </p>
 
