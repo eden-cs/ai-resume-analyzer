@@ -25,8 +25,8 @@ def generate_suggestions(missing: dict, score: float) -> str:
 
     @return: str, the generated suggestions for improving the resume.
     """
-    # TODO: check my model isn't global and if REQUEST_COUNT needs to be global
-
+    global REQUEST_COUNT
+    
     # Check if the daily request limit has been reached
     if (REQUEST_COUNT >= MAX_DAILY_REQUESTS):
         return "Sorry, the daily request limit has been reached. Please try again tomorrow."
@@ -38,14 +38,15 @@ def generate_suggestions(missing: dict, score: float) -> str:
     medium_missing = ", ".join(missing["medium"]) if missing["medium"] else "none"
     
     # Create a prompt for the language model based on the missing keywords and match score
-    prompt = f"You are a resume optimization assistant. A resume has been analyzed against a job description, and the match score is {score}%. The following high importance keywords are missing from the resume: {high_missing}. The following medium importance keywords are missing from the resume: {medium_missing}. Provide 3-5 actionable suggestions on how to improve the resume. Focus on adding missing high importance skills. Keep suggestions concise and professional."
+    prompt = f"""You are a resume optimization assistant. A resume has been analyzed against a job description, and the match score is {score}%. The following high importance keywords are missing from the resume: {high_missing}. The following medium importance keywords are missing from the resume: {medium_missing}. Return ONLY a JSON array of exactly 4 concise actionable suggestions. No preamble, no markdown, no extra text. Format: ["suggestion 1", "suggestion 2", "suggestion 3", "suggestion 4"]"""
+
 
     # Try to generate suggestions using the language model with error handling for potential API errors
     try:
         response = model.generate_content(
             prompt, 
             generation_config = {
-                "max_output_tokens": 150, # Limit the response to 150 tokens to ensure concise suggestions
+                "max_output_tokens": 1024, # Limit the response to 1024 tokens to ensure concise suggestions
                 "temperature": 0.7, # Set temperature to 0.7 for a balance between creativity and relevance
                 "top_p": 0.9 # Set top_p to 0.9 to consider the top 90% of token probabilities for generating suggestions
             }
