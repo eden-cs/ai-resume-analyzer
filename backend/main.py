@@ -10,7 +10,8 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )   
@@ -48,6 +49,18 @@ async def analyze_resume(file: UploadFile, job_desc: str = Form(...)):
 
     # Call on helper function to generate analysis summary
     summary = analysis_summary(score, matched, missing)
+
+    # Only generate suggestions if there are missing keywords.
+    all_matched = (
+        len(missing["high"]) == 0 and
+        len(missing["medium"]) == 0 and
+        len(missing["low"]) == 0
+    )
+
+    if all_matched:
+        suggestions = ""
+    else:
+        suggestions = generate_suggestions(missing, score)
 
     # Call on helper function to generate suggestions for improving the resume
     suggestions = generate_suggestions(missing, score)
