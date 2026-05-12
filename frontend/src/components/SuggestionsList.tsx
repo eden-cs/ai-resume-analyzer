@@ -1,47 +1,10 @@
 // Props this component receives from the ResultsPage.
 interface Props {
-    suggestions: string // AI generated suggestions string from Gemini API.
+    suggestions: string[] // AI generated suggestions string from Gemini API.
 }
 
 export default function SuggestionsList({ suggestions }: Props) {
-    // Parse the suggestions string into an array of individual suggestion strings.
-    const lines = (() => {
-        // Clean the string by removing an leading/trailing whitespace.
-        const cleaned = suggestions.trim()
-
-        // Handle the case where Gemini returns a JSON array.
-        try {
-            const parsed = JSON.parse(cleaned)
-            // Make sure it's an array of strings.
-            if (Array.isArray(parsed)) {
-                return parsed as string[]
-            }
-            // Catch the case where it plain text.
-        } catch {
-            // Fall through to text splitting.
-        }
-        // Try to extract items from malformed JSON array
-        try {
-            // Add closing bracket if missing and try again
-            const fixed = cleaned.endsWith(']') ? cleaned : cleaned + '"]'
-            const parsed = JSON.parse(fixed)
-            if (Array.isArray(parsed)) {
-                return parsed as string[]
-            }
-        } catch {
-            // Fall through to text splitting.
-        }
-        // Fall back to splitting by newline and cleaning up numbering or dashes.
-        return cleaned
-            .split('\n')
-            .map((line) =>
-                line
-                    .replace(/^\d+\.\s*/, "")   // Removes "1. " from the start.
-                    .replace(/^-\s*/, "")       // Removes "- " from the start.
-                    .trim()                     // Removes extra whitespace.
-            )
-            .filter((line) => line.length > 0)  // Removes empty lines.
-    }) ()
+    const safeSuggestions = suggestions ?? []   // Handle the case where suggestions is null or undefined by defaulting to an empty array.
 
     return (
         <div className = "bg-taupe border border-espresso/12 rounded-xl p-5 mb-3">
@@ -53,7 +16,7 @@ export default function SuggestionsList({ suggestions }: Props) {
 
             {/* List of suggestion bullet points */}
             <ul className = "flex flex-col gap-2.5">
-                {lines.map((suggestion, index) => (
+                {safeSuggestions.map((suggestion, index) => (
                     <li key = {index} className = "flex items-start gap-2.5">
 
                         {/* Bullet point */}
