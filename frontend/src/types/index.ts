@@ -25,7 +25,7 @@ export interface AnalysisResult {
     missing_keywords: MissingKeywords
     summary: string
     feedback: Feedback
-    suggestions: string
+    suggestions: string[]
 }
 
 // Shape of the form validation errors on upload page
