@@ -58,7 +58,7 @@ async def analyze_resume(file: UploadFile, job_desc: str = Form(...)):
     )
 
     if all_matched:
-        suggestions = ""
+        suggestions = []
     else:
         suggestions = generate_suggestions(missing, score)
 
