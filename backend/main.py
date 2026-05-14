@@ -13,7 +13,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",                            # Local development
         "https://ai-resume-analyzer-amek.onrender.com",     # Render URL
-        "https://app.vercel.app"                            # Vercel URL placeholder
+        "https://ai-resume-analyzer-six-dun.vercel.app/"    # Vercel URL
         ],
     allow_credentials=True,
     allow_methods=["*"],
