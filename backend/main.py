@@ -10,7 +10,11 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",                            # Local development
+        "https://ai-resume-analyzer-amek.onrender.com",     # Render URL
+        "https://app.vercel.app"                            # Vercel URL placeholder
+        ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
