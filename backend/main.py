@@ -13,7 +13,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",                            # Local development
         "https://ai-resume-analyzer-amek.onrender.com",     # Render URL
-        "https://ai-resume-analyzer-six-dun.vercel.app/"    # Vercel URL
+        "https://ai-resume-analyzer-six-dun.vercel.app"    # Vercel URL
         ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -65,9 +65,6 @@ async def analyze_resume(file: UploadFile, job_desc: str = Form(...)):
         suggestions = []
     else:
         suggestions = generate_suggestions(missing, score)
-
-    # Call on helper function to generate suggestions for improving the resume
-    suggestions = generate_suggestions(missing, score)
 
     return {
         "match_score": score,
