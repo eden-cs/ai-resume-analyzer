@@ -59,8 +59,22 @@ def generate_suggestions(missing: dict, score: float) -> list:
     medium_missing = ", ".join(missing["medium"]) if missing["medium"] else "none"
     
     # Create a prompt for the language model based on the missing keywords and match score
-    prompt = f"""You are a resume optimization assistant. A resume has been analyzed against a job description, and the match score is {score}%. The following high importance keywords are missing from the resume: {high_missing}. The following medium importance keywords are missing from the resume: {medium_missing}. Return ONLY a valid JSON array of exactly 4 concise actionable suggestions. No preamble, no markdown, no extra text. Format: ["suggestion 1", "suggestion 2", "suggestion 3", "suggestion 4"]"""
+    prompt = f"""You are a career coach helping a student improve their resume for a specific job application.
 
+    The resume has a match score of {score}% against the job description.
+
+    High importance keywords missing: {high_missing}
+    Medium importance keywords missing: {medium_missing}
+
+    Generate exactly 4 specific, actionable suggestions. For each missing high importance keyword:
+    - Suggest exactly HOW to add it to the resume naturally
+    - If it is a technical skill, suggest a specific free resource or project to build experience with it
+
+    Be specific and direct. Instead of "add keywords to your resume" say "Add a bullet point under your X project mentioning Y".
+    Instead of "demonstrate familiarity" say "Take the free Google course on X at coursera.org".
+
+    Return ONLY a valid JSON array of exactly 4 strings. No preamble, no markdown, no bullet points inside the strings. Format:
+    ["specific suggestion 1", "specific suggestion 2", "specific suggestion 3", "specific suggestion 4"]"""
 
     # Try to generate suggestions using the language model with error handling for potential API errors
     try:
