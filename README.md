@@ -1,4 +1,4 @@
-# Ai Resume Analyzer
+# AI Resume Analyzer
 An AI-powered resume analyzer that compares your resume against a job description and provides prioritized,actionable feedback to help you land the job.
 
 ## Live Demo
