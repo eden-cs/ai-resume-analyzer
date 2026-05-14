@@ -2,7 +2,7 @@
 An AI-powered resume analyzer that compares your resume against a job description and provides prioritized,actionable feedback to help you land the job.
 
 ## Live Demo
-https://ai-resume-analyzer-six-dun.vercel.app/
+https://ai-resume-analyzer-six-dun.vercel.app
 
 ## Figma Prototype
 https://www.figma.com/proto/JSByNFcKxrvrbd5FEYvfbm/AI-Resume-Analyzer?node-id=1-8&t=QGtUh0799dIVufXc-1
